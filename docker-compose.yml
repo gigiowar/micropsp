@@ -1,0 +1,93 @@
+version: "3.2"
+
+services:
+
+  api:
+    build:
+      context: .
+    image: micropsp
+    container_name: micropsp-api
+    env_file: docker-compose.env
+    environment:
+      SERVICES: api
+      PORT: 3000
+    depends_on:
+      - redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.backend=api"
+      - "traefik.port=3000"
+      - "traefik.frontend.entryPoints=http"
+      - "traefik.frontend.rule=PathPrefix:/"
+    networks:
+      - internal
+
+  transactions:
+    build:
+      context: .
+    image: micropsp
+    container_name: micropsp-transactions
+    env_file: docker-compose.env
+    environment:
+      SERVICES: transactions
+    labels:
+      - "traefik.enable=false"
+    depends_on:
+      - redis
+    networks:
+      - internal         
+
+  payables:
+    build:
+      context: .
+    image: micropsp
+    container_name: micropsp-payables
+    env_file: docker-compose.env
+    environment:
+      SERVICES: payables
+    labels:
+      - "traefik.enable=false"
+    depends_on:
+      - redis
+    networks:
+      - internal      
+
+  redis:
+    image: redis:alpine
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - internal
+
+  mongo:
+    image: mongo
+    volumes:
+      - ./db:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - internal            
+
+  traefik:
+    image: traefik:v1.7
+    container_name: traefik
+    command:
+      - "--api"
+      - "--docker"
+      - "--docker.watch"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.backend=traefik"
+      - "traefik.port=8080"
+    ports:
+      - 3000:80
+      - 3001:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /dev/null:/traefik.toml
+    networks:
+      - internal
+      - default
+
+networks:
+  internal:
